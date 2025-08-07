@@ -16,7 +16,7 @@ enum NodeShape {
 }
 
 impl NodeShape {
-    fn to_mermaid(&self, content: &str) -> String {
+    fn to_mermaid(self, content: &str) -> String {
         match self {
             NodeShape::Rectangle => format!("[\"{}\"]", content),
             NodeShape::Rounded => format!("(\"{}\")", content),

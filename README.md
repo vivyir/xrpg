@@ -17,6 +17,7 @@ Therefore, `xrpg` is more of an engine than a game itself. Even the base game it
     * Player marker will be a UUID pointing to a HashMap<UUID, Entity>.
     * Will need to figure out how many of those entities to actually fully simulate (maybe keep scanning the graph from player's spot outwards and only simulate those). Non-entity related events will still be handled globally. Cooldowns will store a "game time timestamp" of when they expire, simple check.
     - [ ] Add an mpsc event queue for the game, include a catch-all variant for Lua registered events.
+    - [ ] Add event handlers, the rust end will handle the most basic events before anything else, and then it will pass it onto the Lua registered event handlers if conditions are met.
     - [ ] Step function (each step is a minute of game time, 1440 steps in a day. Might benefit from a threadpool or rayon parallelization), will poll for events each step and consume.
     * Recurring events will be useful for potion effects and such, might need event variants.
     - [ ] Integrate game loop into UI.
