@@ -1,235 +1,116 @@
-use std::collections::{HashMap, HashSet};
+mod graph;
+use graph::{Map, NodeShape};
 
-// mermaid node shapes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum NodeShape {
-    Rectangle,      // [ ]
-    Rounded,        // ( )
-    Circle,         // (( ))
-    Rhombus,        // { }
-    Hexagon,        // {{ }}
-    Stadium,        // ([ ])
-    Subroutine,     // [[ ]]
-    Cylinder,       // [( )]
-    CircleDouble,   // ((( )))
-    Asymmetric,     // > ]
+use color_eyre::Result;
+
+// *** BEGIN UI LOGIC ***
+use crossterm::event::KeyCode;
+
+pub struct TabsState<'a> {
+    pub titles: Vec<&'a str>,
+    pub index: usize,
 }
 
-impl NodeShape {
-    fn to_mermaid(self, content: &str) -> String {
-        match self {
-            NodeShape::Rectangle => format!("[\"{}\"]", content),
-            NodeShape::Rounded => format!("(\"{}\")", content),
-            NodeShape::Circle => format!("((\"{}\"))", content),
-            NodeShape::Rhombus => format!("{{\"{}\"}}", content),
-            NodeShape::Hexagon => format!("{{\"{}\"}}", content),
-            NodeShape::Stadium => format!("([\"{}\"])", content),
-            NodeShape::Subroutine => format!("[[\"{}\"]]", content),
-            NodeShape::Cylinder => format!("[(\"{}\")]", content),
-            NodeShape::CircleDouble => format!("(((\"{}\")))", content),
-            NodeShape::Asymmetric => format!(">\"{}\"]", content),
-        }
+impl<'a> TabsState<'a> {
+    pub const fn new(titles: Vec<&'a str>) -> Self {
+        Self { titles, index: 0 }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct EdgeData {
-    distance: u32,
-}
-
-#[derive(Debug)]
-struct MapNode {
-    name: String,
-    shape: NodeShape,
-    removed: bool,
-}
-
-#[derive(Debug)]
-struct Map {
-    nodes: Vec<MapNode>,
-    node_indices: HashMap<String, usize>,
-    adjacency: Vec<HashMap<usize, EdgeData>>,
-}
-
-impl Map {
-    pub fn new() -> Self {
-        Map {
-            nodes: Vec::new(),
-            node_indices: HashMap::new(),
-            adjacency: Vec::new(),
-        }
+    pub fn next(&mut self) {
+        self.index = (self.index + 1) % self.titles.len();
     }
-
-    /// Adds a node to the map and returns its index
-    pub fn add_node(&mut self, name: &str, shape: NodeShape) -> usize {
-        let index = self.nodes.len();
-        self.nodes.push(MapNode {
-            name: name.to_string(),
-            shape,
-            removed: false,
-        });
-        self.adjacency.push(HashMap::new());
-        self.node_indices.insert(name.to_string(), index);
-        index
-    }
-
-    /// Gets a node's index by name, ignoring removed nodes
-    pub fn get_index(&self, name: &str) -> Option<usize> {
-        self.node_indices.get(name).copied()
-            .filter(|&idx| !self.nodes[idx].removed)
-    }
-
-    /// Adds a path between nodes with distance
-    pub fn add_path(&mut self, from: usize, to: usize, distance: u32) {
-        if from >= self.adjacency.len() || to >= self.adjacency.len() {
-            return;
-        }
-        
-        self.adjacency[from].insert(to, EdgeData { distance });
-    }
-
-    /// Adds a bidirectional path between nodes
-    pub fn add_bidirectional_path(&mut self, a: usize, b: usize, distance: u32) {
-        self.add_path(a, b, distance);
-        self.add_path(b, a, distance);
-    }
-
-    /// Checks if a directed path exists
-    pub fn has_directed_path(&self, from: usize, to: usize) -> bool {
-        self.adjacency.get(from)
-            .and_then(|edges| edges.get(&to))
-            .is_some()
-    }
-
-    /// Checks if a bidirectional path exists
-    pub fn is_bidirectional(&self, a: usize, b: usize) -> bool {
-        self.has_directed_path(a, b) && self.has_directed_path(b, a)
-    }
-
-    /// Removes a directed path
-    pub fn remove_directed_path(&mut self, from: usize, to: usize) -> bool {
-        if let Some(edges) = self.adjacency.get_mut(from) {
-            edges.remove(&to).is_some()
+    pub fn previous(&mut self) {
+        if self.index > 0 {
+            self.index -= 1;
         } else {
-            false
+            self.index = self.titles.len() - 1;
         }
-    }
-
-    /// Removes a bidirectional path
-    pub fn remove_bidirectional_path(&mut self, a: usize, b: usize) {
-        self.remove_directed_path(a, b);
-        self.remove_directed_path(b, a);
-    }
-
-    /// Removes a node and all its connections
-    pub fn remove_node(&mut self, index: usize) {
-        if index >= self.nodes.len() || self.nodes[index].removed {
-            return;
-        }
-        
-        self.nodes[index].removed = true;
-        
-        // remove from name index
-        if let Some(name) = self.node_indices.remove(&self.nodes[index].name) {
-            // clear all outgoing connections
-            self.adjacency[index].clear();
-            
-            // remove all incoming connections
-            for edges in &mut self.adjacency {
-                edges.remove(&index);
-            }
-        }
-    }
-
-    /// Gets all neighbors of a node
-    pub fn neighbors(&self, node: usize) -> Vec<usize> {
-        if node >= self.adjacency.len() || self.nodes[node].removed {
-            return Vec::new();
-        }
-        
-        self.adjacency[node].keys().copied().collect()
-    }
-
-    /// Generates Mermaid.js flowchart without duplicate bidirectional paths
-    pub fn to_mermaid(&self) -> String {
-        let mut output = String::from("graph LR\n");
-        let mut valid_nodes = HashSet::new();
-        let mut rendered_edges = HashSet::new();
-        
-        // add active nodes with
-        for (idx, node) in self.nodes.iter().enumerate() {
-            if node.removed {
-                continue;
-            }
-            
-            valid_nodes.insert(idx);
-            output.push_str(&format!(
-                "    {}{}\n",
-                idx,
-                node.shape.to_mermaid(&sanitize_mermaid(&node.name))
-            ));
-        }
-        
-        // add paths with distance labels
-        for (from, edges) in self.adjacency.iter().enumerate() {
-            if !valid_nodes.contains(&from) {
-                continue;
-            }
-            
-            for (to, edge_data) in edges {
-                if !valid_nodes.contains(to) {
-                    continue;
-                }
-                
-                // skip if we've already rendered this bidirectional pair
-                let reverse_key = (*to, from);
-                let key = (from, *to);
-                
-                if rendered_edges.contains(&key) {
-                    continue;
-                }
-                
-                if self.is_bidirectional(from, *to) {
-                    // only render bidirectional edges once
-                    rendered_edges.insert(key);
-                    rendered_edges.insert(reverse_key);
-                    
-                    output.push_str(&format!(
-                        "    {} <--> |{} min| {}\n",
-                        from,
-                        edge_data.distance,
-                        to
-                    ));
-                } else {
-                    // render unidirectional paths
-                    output.push_str(&format!(
-                        "    {} --> |{} min| {}\n",
-                        from,
-                        edge_data.distance,
-                        to
-                    ));
-                }
-            }
-        }
-        
-        // add styling directives
-        output.push_str("\n    classDef active fill:#f0f0f0,stroke:#333,stroke-width:2px;\n");
-        output.push_str("    linkStyle default stroke:#777,stroke-width:2px,fill:none;\n");
-        
-        output
     }
 }
 
-/// Sanitizes text for Mermaid.js
-fn sanitize_mermaid(text: &str) -> String {
-    text.replace('"', "#quot;")
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('|', "&#124;")
+pub struct App<'a> {
+    pub title: &'a str,
+    pub should_quit: bool,
+    pub tabs: TabsState<'a>,
 }
 
-fn main() {
+impl<'a> App<'a> {
+    pub fn new(title: &'a str) -> Self {
+        App {
+            title,
+            should_quit: false,
+            tabs: TabsState::new(vec!["Alpha", "Bravo", "Charlie", "Delta"]),
+        }
+    }
+
+    pub fn on_tab(&mut self) {
+        self.tabs.next();
+    }
+
+    pub fn on_backtab(&mut self) {
+        self.tabs.previous();
+    }
+
+    pub fn on_key(&mut self, c: KeyCode) {
+        match c {
+            KeyCode::Esc => {
+                self.should_quit = true;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn on_tick(&mut self) {
+        // placeholder function, this will tick forward widgets that need ticking. check ratatui's
+        // demo for more information. (src/app.rs @ App impl)
+    }
+}
+// *** END UI LOGIC ***
+
+// *** START UI DRAWING ***
+use ratatui::layout::{Constraint, Layout, Rect, Alignment};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{self, Span};
+use ratatui::widgets::canvas::{self, Canvas, Circle, MapResolution, Rectangle};
+use ratatui::widgets::{
+    Axis, BarChart, Block, Cell, Chart, Dataset, Gauge, LineGauge, List, ListItem, Paragraph, Row,
+    Sparkline, Table, Tabs, Wrap,
+};
+use ratatui::widgets::block::BorderType;
+use ratatui::{Frame, symbols};
+
+pub fn render(frame: &mut Frame, app: &mut App) {
+    let chunks = Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).split(frame.area());
+    let tabs = app
+        .tabs
+        .titles
+        .iter()
+        .map(|t| text::Line::from(Span::styled(*t, Style::default().fg(Color::Green))))
+        .collect::<Tabs>()
+        .block(Block::bordered().title(app.title).border_type(BorderType::Rounded).title_alignment(Alignment::Center))
+        .highlight_style(Style::default().fg(Color::Yellow))
+        .select(app.tabs.index);
+    frame.render_widget(tabs, chunks[0]);
+    match app.tabs.index {
+        _ => {}
+    };
+}
+// *** END UI DRAWING ***
+
+use std::io;
+use std::time::{Duration, Instant};
+use std::error::Error;
+
+use crossterm::event::{self, DisableMouseCapture};
+use crossterm::execute;
+use crossterm::terminal::{
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+};
+use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
+
+fn main() -> Result<()> {
+    color_eyre::install()?;
+
     let mut map = Map::new();
     
     let town = map.add_node("Home Town", NodeShape::Circle);
@@ -268,4 +149,55 @@ fn main() {
     map.add_bidirectional_path(town, village, 20);
     println!("\n=== After adding River Village ===");
     println!("{}", map.to_mermaid());
+
+    // terminal set up
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, DisableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    // app run
+    let mut app = App::new("xrpg: Extensible RPG");
+    let app_result: Result<(), Box<dyn Error>> = {
+        let terminal = &mut terminal;
+        let tick_rate = Duration::from_millis(250);
+        let mut last_tick = Instant::now();
+        loop {
+            terminal.draw(|frame| render(frame, &mut app))?;
+
+            let timeout = tick_rate.saturating_sub(last_tick.elapsed());
+            if !event::poll(timeout)? {
+                app.on_tick();
+                last_tick = Instant::now();
+                continue;
+            }
+
+            if let Some(key) = event::read()?.as_key_press_event() {
+                match key.code {
+                    KeyCode::Tab => app.on_tab(),
+                    KeyCode::BackTab => app.on_backtab(),
+                    _else => app.on_key(_else),
+                }
+            }
+            if app.should_quit {
+                return Ok(());
+            }
+        }
+    };
+
+    // restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    if let Err(err) = app_result {
+        println!("{err:?}");
+    }
+
+    Ok(())
 }

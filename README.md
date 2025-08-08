@@ -11,6 +11,10 @@ Therefore, `xrpg` is more of an engine than a game itself. Even the base game it
 ### Roadmap
 
 - [ ] Implement basic UI with Ratatui.
+    - [x] Write the UI scaffolding.
+    - [ ] Refactor `main.rs` into multiple files. Tabs will have different files in a directory.
+    - [ ] State enum (Menu, Main, Quit. Switch `should_quit` to this state).
+    - [ ] Implement main menu.
 - [ ] Implement the basic game loop.
     - [ ] Define a basic game state struct.
     - [ ] Define an entity struct (all characters, player, enemies, animals).
