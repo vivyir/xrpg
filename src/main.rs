@@ -1,100 +1,15 @@
 mod graph;
 use graph::{Map, NodeShape};
 
+mod tui;
+use tui::{App, TabsState};
+
+mod tui_draw;
+use tui_draw::render;
+
 use color_eyre::Result;
 
-// *** BEGIN UI LOGIC ***
 use crossterm::event::KeyCode;
-
-pub struct TabsState<'a> {
-    pub titles: Vec<&'a str>,
-    pub index: usize,
-}
-
-impl<'a> TabsState<'a> {
-    pub const fn new(titles: Vec<&'a str>) -> Self {
-        Self { titles, index: 0 }
-    }
-    pub fn next(&mut self) {
-        self.index = (self.index + 1) % self.titles.len();
-    }
-    pub fn previous(&mut self) {
-        if self.index > 0 {
-            self.index -= 1;
-        } else {
-            self.index = self.titles.len() - 1;
-        }
-    }
-}
-
-pub struct App<'a> {
-    pub title: &'a str,
-    pub should_quit: bool,
-    pub tabs: TabsState<'a>,
-}
-
-impl<'a> App<'a> {
-    pub fn new(title: &'a str) -> Self {
-        App {
-            title,
-            should_quit: false,
-            tabs: TabsState::new(vec!["Alpha", "Bravo", "Charlie", "Delta"]),
-        }
-    }
-
-    pub fn on_tab(&mut self) {
-        self.tabs.next();
-    }
-
-    pub fn on_backtab(&mut self) {
-        self.tabs.previous();
-    }
-
-    pub fn on_key(&mut self, c: KeyCode) {
-        match c {
-            KeyCode::Esc => {
-                self.should_quit = true;
-            }
-            _ => {}
-        }
-    }
-
-    pub fn on_tick(&mut self) {
-        // placeholder function, this will tick forward widgets that need ticking. check ratatui's
-        // demo for more information. (src/app.rs @ App impl)
-    }
-}
-// *** END UI LOGIC ***
-
-// *** START UI DRAWING ***
-use ratatui::layout::{Constraint, Layout, Rect, Alignment};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{self, Span};
-use ratatui::widgets::canvas::{self, Canvas, Circle, MapResolution, Rectangle};
-use ratatui::widgets::{
-    Axis, BarChart, Block, Cell, Chart, Dataset, Gauge, LineGauge, List, ListItem, Paragraph, Row,
-    Sparkline, Table, Tabs, Wrap,
-};
-use ratatui::widgets::block::BorderType;
-use ratatui::{Frame, symbols};
-
-pub fn render(frame: &mut Frame, app: &mut App) {
-    let chunks = Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).split(frame.area());
-    let tabs = app
-        .tabs
-        .titles
-        .iter()
-        .map(|t| text::Line::from(Span::styled(*t, Style::default().fg(Color::Green))))
-        .collect::<Tabs>()
-        .block(Block::bordered().title(app.title).border_type(BorderType::Rounded).title_alignment(Alignment::Center))
-        .highlight_style(Style::default().fg(Color::Yellow))
-        .select(app.tabs.index);
-    frame.render_widget(tabs, chunks[0]);
-    match app.tabs.index {
-        _ => {}
-    };
-}
-// *** END UI DRAWING ***
 
 use std::io;
 use std::time::{Duration, Instant};
@@ -158,7 +73,7 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     // app run
-    let mut app = App::new("xrpg: Extensible RPG");
+    let mut app = App::new("xrpg: eXtensible RPG");
     let app_result: Result<(), Box<dyn Error>> = {
         let terminal = &mut terminal;
         let tick_rate = Duration::from_millis(250);

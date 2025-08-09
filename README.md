@@ -1,4 +1,4 @@
-## xrpg: Extensible RPG
+## xrpg: eXtensible RPG
 
 The project that inspired this was `rpg-cli`, another game written in Rust that used your directory structure as the map for a dungeon by replacing the `cd` command. Cool stuff!
 
@@ -12,7 +12,7 @@ Therefore, `xrpg` is more of an engine than a game itself. Even the base game it
 
 - [ ] Implement basic UI with Ratatui.
     - [x] Write the UI scaffolding.
-    - [ ] Refactor `main.rs` into multiple files. Tabs will have different files in a directory.
+    - [x] Refactor `main.rs` into multiple files. Tabs will have different files in a directory.
     - [ ] State enum (Menu, Main, Quit. Switch `should_quit` to this state).
     - [ ] Implement main menu.
 - [ ] Implement the basic game loop.
