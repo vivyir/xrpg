@@ -10,11 +10,11 @@ Therefore, `xrpg` is more of an engine than a game itself. Even the base game it
 
 ### Roadmap
 
-- [ ] Implement basic UI with Ratatui.
+- [x] Implement basic UI with Ratatui.
     - [x] Write the UI scaffolding.
     - [x] Refactor `main.rs` into multiple files. Tabs will have different files in a directory.
-    - [ ] State enum (Menu, Main, Quit. Switch `should_quit` to this state).
-    - [ ] Implement main menu.
+    - [x] State enum (Menu, Main, Quit. Switch `should_quit` to this state).
+    - [x] Implement main menu.
 - [ ] Implement the basic game loop.
     - [ ] Define a basic game state struct.
     - [ ] Define an entity struct (all characters, player, enemies, animals).
@@ -30,3 +30,6 @@ Therefore, `xrpg` is more of an engine than a game itself. Even the base game it
     * Unsure right now, but I think we should only use Lua without JSON. You can still initialize data like this.
     - [ ] Further down the line, we need to allow extending the UI through Lua. Maybe allow some basic widget interaction with Lua code? Predefined layouts from JSON? We'll see.
 - [ ] Build script to bundle mermaid.js and use it offline while compiling. Another thread will be spun up to output the bundled mermaid.js and mermaid map graph to an html file. We could even write a Lua module to recompile the map on node removed, node added, edge changed and other such events.
+
+Notes:
+- The UI is horrendous right now. We need to standardize the theme across the entire app before delivering the MVP.

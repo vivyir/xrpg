@@ -2,7 +2,7 @@ mod graph;
 use graph::{Map, NodeShape};
 
 mod tui;
-use tui::{App, TabsState};
+use tui::{App, AppState, TabsState};
 
 mod tui_draw;
 use tui_draw::render;
@@ -89,26 +89,22 @@ fn main() -> Result<()> {
             }
 
             if let Some(key) = event::read()?.as_key_press_event() {
-                match key.code {
-                    KeyCode::Tab => app.on_tab(),
-                    KeyCode::BackTab => app.on_backtab(),
-                    _else => app.on_key(_else),
-                }
+                app.on_key(key.code);
             }
-            if app.should_quit {
+            if app.app_state == AppState::Quit {
+                // restore terminal
+                disable_raw_mode()?;
+                execute!(
+                    terminal.backend_mut(),
+                    LeaveAlternateScreen,
+                    DisableMouseCapture
+                )?;
+                terminal.show_cursor()?;
+
                 return Ok(());
             }
         }
     };
-
-    // restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
 
     if let Err(err) = app_result {
         println!("{err:?}");
